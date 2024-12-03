@@ -11,6 +11,9 @@
 #include "graph.h"
 #include "pvector.h"
 
+#include <cmath>
+#include <omp.h>
+
 /*
 GAP Benchmark Suite
 Kernel: PageRank (PR)
@@ -27,8 +30,30 @@ implementation is still available in src/pr_spmv.cc.
 
 using namespace std;
 
-typedef float ScoreT;
-const float kDamp = 0.85;
+typedef double ScoreT;
+const double kDamp = 0.85;
+
+
+
+
+/**
+ * Compute the L1-norm of the difference of two arrays in parallel.
+ * @param x an array
+ * @param y another array
+ * @param N size of arrays
+ * @param a initial value
+ * @returns ||x-y||_1
+ */
+template <class TX, class TY, class TA>
+inline TA l1NormDeltaOmp(const TX& x, const TY& y, size_t N, TA a) {
+  // ASSERT(x && y);
+  #pragma omp parallel for schedule(auto) reduction(+:a)
+  for (size_t i=0; i<N; ++i)
+    a += TA(std::abs(x[i] - y[i]));
+  return a;
+}
+
+
 
 
 pvector<ScoreT> PageRankPullGS(const Graph &g, int max_iters, double epsilon=0,
@@ -98,12 +123,17 @@ int main(int argc, char* argv[]) {
   CLPageRank cli(argc, argv, "pagerank", 1e-4, 20);
   if (!cli.ParseArgs())
     return -1;
+  printf("Loading graph %s ...\n", cli.filename().c_str());
   Builder b(cli);
   Graph g = b.MakeGraph();
+  printf("- %lu nodes, %lu edges\n", g.num_nodes(), g.num_edges());
   auto PRBound = [&cli] (const Graph &g) {
     return PageRankPullGS(g, cli.max_iters(), cli.tolerance(), cli.logging_en());
   };
   auto VerifierBound = [&cli] (const Graph &g, const pvector<ScoreT> &scores) {
+    auto scores_exact = PageRankPullGS(g, 500, 0.0, false);
+    double error = l1NormDeltaOmp(scores, scores_exact, scores.size(), 0.0);
+    printf("Rank error: %e\n", error);
     return PRVerifier(g, scores, cli.tolerance());
   };
   BenchmarkKernel(cli, g, PRBound, PrintTopScores, VerifierBound);

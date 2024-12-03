@@ -16,7 +16,7 @@ ifneq ($(SERIAL), 1)
 	CXX_FLAGS += $(PAR_FLAG)
 endif
 
-KERNELS = bc bfs cc cc_sv pr pr_spmv sssp tc
+KERNELS = pr  # bc bfs cc cc_sv pr_spmv sssp tc
 SUITE = $(KERNELS) converter
 
 .PHONY: all
@@ -26,10 +26,10 @@ all: $(SUITE)
 	$(CXX) $(CXX_FLAGS) $< -o $@
 
 # Testing
-include test/test.mk
+# include test/test.mk
 
 # Benchmark Automation
-include benchmark/bench.mk
+# include benchmark/bench.mk
 
 
 .PHONY: clean

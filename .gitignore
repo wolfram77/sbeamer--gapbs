@@ -1,3 +1,7 @@
+*.log
+*.csv
+.vscode/
+
 bc
 bfs
 cc
